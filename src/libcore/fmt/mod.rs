@@ -18,8 +18,8 @@ use mem;
 use num::flt2dec;
 use ops::Deref;
 use result;
-use slice;
 use str;
+#[cfg(stage0)] use slice;
 
 #[unstable(feature = "fmt_flags_align", issue = "27726")]
 /// Possible alignments returned by `Formatter::align`
@@ -159,7 +159,7 @@ pub struct Formatter<'a> {
     precision: Option<usize>,
 
     buf: &'a mut (Write+'a),
-    curarg: slice::Iter<'a, ArgumentV1<'a>>,
+    #[cfg(stage0)] curarg: slice::Iter<'a, ArgumentV1<'a>>,
     args: &'a [ArgumentV1<'a>],
 }
 
@@ -808,6 +808,7 @@ pub trait UpperExp {
 /// [`write!`]: ../../std/macro.write.html
 #[stable(feature = "rust1", since = "1.0.0")]
 pub fn write(output: &mut Write, args: Arguments) -> Result {
+    #[cfg(stage0)]
     let mut formatter = Formatter {
         flags: 0,
         width: None,
@@ -817,6 +818,16 @@ pub fn write(output: &mut Write, args: Arguments) -> Result {
         fill: ' ',
         args: args.args,
         curarg: args.args.iter(),
+    };
+    #[cfg(not(stage0))]
+    let mut formatter = Formatter {
+        flags: 0,
+        width: None,
+        precision: None,
+        buf: output,
+        align: rt::v1::Alignment::Unknown,
+        fill: ' ',
+        args: args.args,
     };
 
     let mut pieces = args.pieces.iter();
@@ -861,10 +872,11 @@ impl<'a> Formatter<'a> {
         self.precision = self.getcount(&arg.format.precision);
 
         // Extract the correct argument
-        let value = match arg.position {
+        #[cfg(stage0)] let value = match arg.position {
             rt::v1::Position::Next => { *self.curarg.next().unwrap() }
             rt::v1::Position::At(i) => self.args[i],
         };
+        #[cfg(not(stage0))] let value = self.args[arg.position];
 
         // Then actually do some printing
         (value.formatter)(value.value, self)
@@ -877,7 +889,7 @@ impl<'a> Formatter<'a> {
             rt::v1::Count::Param(i) => {
                 self.args[i].as_usize()
             }
-            rt::v1::Count::NextParam => {
+            #[cfg(stage0)] rt::v1::Count::NextParam => {
                 self.curarg.next().and_then(|arg| arg.as_usize())
             }
         }

@@ -92,6 +92,7 @@
 #![cfg_attr(stage0, feature(question_mark))]
 #![feature(never_type)]
 #![feature(prelude_import)]
+#![feature(stmt_expr_attributes)]
 
 #[prelude_import]
 #[allow(unused)]

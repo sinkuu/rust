@@ -17,7 +17,8 @@
 
 #[derive(Copy, Clone)]
 pub struct Argument {
-    pub position: Position,
+    #[cfg(stage0)] pub position: Position,
+    #[cfg(not(stage0))] pub position: usize,
     pub format: FormatSpec,
 }
 
@@ -47,10 +48,11 @@ pub enum Alignment {
 pub enum Count {
     Is(usize),
     Param(usize),
-    NextParam,
+    #[cfg(stage0)] NextParam,
     Implied,
 }
 
+#[cfg(stage0)]
 #[derive(Copy, Clone)]
 pub enum Position {
     Next,
