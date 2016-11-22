@@ -54,6 +54,8 @@ pub enum Piece<'a> {
 pub struct Argument<'a> {
     /// Where to find this argument
     pub position: Position<'a>,
+    /// Field name or index
+    pub accessor: Option<Accessor<'a>>,
     /// How to format the argument
     pub format: FormatSpec<'a>,
 }
@@ -84,6 +86,13 @@ pub enum Position<'a> {
     ArgumentIs(usize),
     /// The argument has a name.
     ArgumentNamed(&'a str),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum Accessor<'a> {
+    Index(usize),
+    Field(&'a str),
+    TupleField(usize),
 }
 
 /// Enum of alignments which are supported.
@@ -274,6 +283,7 @@ impl<'a> Parser<'a> {
     /// the format string
     fn argument(&mut self) -> Argument<'a> {
         let pos = self.position();
+        let accessor = self.accessor();
         let format = self.format();
 
         // Resolve position after parsing format spec.
@@ -288,6 +298,7 @@ impl<'a> Parser<'a> {
 
         Argument {
             position: pos,
+            accessor: accessor,
             format: format,
         }
     }
@@ -309,6 +320,55 @@ impl<'a> Parser<'a> {
                 _ => None,
             }
         }
+    }
+
+    /// Parses an accessor for an argument. This could be a field access or a indexing.
+    fn accessor(&mut self) -> Option<Accessor<'a>> {
+        if self.consume('.') {
+            if let Some(n) = self.integer() {
+                Some(Accessor::TupleField(n))
+            } else {
+                fn ident_start(c: char) -> bool {
+                    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        c == '_' || (c > '\x7f' && c.is_xid_start())
+                }
+
+                fn ident_continue(c: char) -> bool {
+                    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '_' ||
+                        (c > '\x7f' && c.is_xid_continue())
+                }
+
+                self.try(|self| {
+                    self.cur.next()
+                        .map(|(start, ch)| {
+                            if ident_start(ch) {
+                                self.cur
+                                    .take_while(|(_, ch)| ident_continue(ch))
+                                    .last()
+                                    .map(|(end, _)| Accessor::Field(&self.input[start, end]))
+                            }
+                        })
+                })
+            }
+        } else if self.consume('[') {
+            let res = self.integer().map(|idx| Accessor::Index(idx));
+            if self.consume(']') {
+                res
+            } else {
+                None
+            }
+        }
+    }
+
+    fn try<F, T>(&mut self, f: F) where F: FnMut(&mut Self) -> Option<T>
+    {
+        let tmp = self.cur.clone();
+        let res = f(self);
+        if res.is_none() {
+            self.cur = tmp;
+        }
+        res
     }
 
     /// Parses a format specifier at the current position, returning all of the
