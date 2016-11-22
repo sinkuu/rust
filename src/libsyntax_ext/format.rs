@@ -32,6 +32,13 @@ enum ArgumentType {
     Count,
 }
 
+#[derive(PartialEq, Eq)]
+enum Accessor {
+    Index(usize),
+    Field(String),
+    TupleField(usize),
+}
+
 enum Position {
     Exact(usize),
     Named(String),
@@ -229,7 +236,7 @@ impl<'a, 'b> Context<'a, 'b> {
                     parse::ArgumentNamed(s) => Named(s.to_string()),
                 };
 
-                let ty = Placeholder(arg.format.ty.to_string());
+                let ty = Placeholder(None/*FIXME*/, arg.format.ty.to_string());
                 self.verify_arg_type(pos, ty);
             }
         }
@@ -270,7 +277,7 @@ impl<'a, 'b> Context<'a, 'b> {
                     return;
                 }
                 match ty {
-                    Placeholder(_) => {
+                    Placeholder(..) => {
                         // record every (position, type) combination only once
                         let ref mut seen_ty = self.arg_unique_types[arg];
                         let i = match seen_ty.iter().position(|x| *x == ty) {
@@ -432,6 +439,7 @@ impl<'a, 'b> Context<'a, 'b> {
                         self.curarg += 1;
                         parse::ArgumentIs(i)
                     },
+                    accessor: None,
                     format: parse::FormatSpec {
                         fill: arg.format.fill,
                         align: parse::AlignUnknown,
@@ -646,7 +654,7 @@ impl<'a, 'b> Context<'a, 'b> {
                   arg: P<ast::Expr>)
                   -> P<ast::Expr> {
         let trait_ = match *ty {
-            Placeholder(ref tyname) => {
+            Placeholder(accessor, ref tyname) => {
                 match &tyname[..] {
                     "" => "Display",
                     "?" => "Debug",
