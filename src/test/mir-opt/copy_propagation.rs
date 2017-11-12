@@ -13,6 +13,13 @@ fn test(x: u32) -> u32 {
     y
 }
 
+fn test_chain(x: u32) -> u32 {
+    let y = x;
+    let z = y;
+    let w = z;
+    w + z
+}
+
 fn main() {
     // Make sure the function actually gets instantiated.
     test(0);
@@ -40,3 +47,31 @@ fn main() {
 //      return;
 //  }
 // END rustc.test.CopyPropagation.after.mir
+// START rustc.test_chain.CopyPropagation.before.mir
+// bb0: {
+//     ...
+//     _3 = _1;
+//     _2 = _3;
+//     ...
+//     _5 = _2;
+//     _4 = _5;
+//     ...
+//     _7 = _4;
+//     _6 = _7;
+//     ...
+//     _8 = _6;
+//     ...
+//     _9 = _4;
+//     _0 = Add(_8, _9);
+//     ...
+//     return;
+// }
+// END rustc.test_chain.CopyPropagation.before.mir
+// START rustc.test_chain.CopyPropagation.after.mir
+// bb0: {
+//     ...
+//     _0 = Add(_1, _1);
+//     ...
+//     return;
+// }
+// END rustc.test_chain.CopyPropagation.after.mir

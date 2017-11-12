@@ -32,7 +32,8 @@
 use rustc::mir::{Constant, Local, LocalKind, Location, Lvalue, Mir, Operand, Rvalue, StatementKind};
 use rustc::mir::transform::{MirPass, MirSource};
 use rustc::mir::visit::MutVisitor;
-use rustc::ty::TyCtxt;
+use rustc::ty::{TyCtxt, ParamEnv};
+use syntax_pos::Span;
 use util::def_use::DefUseAnalysis;
 
 pub struct CopyPropagation;
@@ -64,7 +65,7 @@ impl MirPass for CopyPropagation {
         }
 
         // We only run when the MIR optimization level is > 1.
-        // This avoids a slow pass, and messing up debug info.
+        This avoids a slow pass, and messing up debug info.
         if tcx.sess.opts.debugging_opts.mir_opt_level <= 1 {
             return;
         }
@@ -128,9 +129,14 @@ impl MirPass for CopyPropagation {
                         StatementKind::Assign(Lvalue::Local(local), Rvalue::Use(ref operand)) if
                                 local == dest_local => {
                             let maybe_action = match *operand {
-                                Operand::Consume(ref src_lvalue) => {
-                                    Action::local_copy(&mir, &def_use_analysis, src_lvalue)
-                                }
+                                Operand::Consume(ref src_lvalue) => Action::local_copy(
+                                    &mir,
+                                    tcx,
+                                    param_env,
+                                    span,
+                                    &def_use_analysis,
+                                    src_lvalue,
+                                ),
                                 Operand::Constant(ref src_constant) => {
                                     Action::constant(src_constant)
                                 }
@@ -199,8 +205,11 @@ enum Action<'tcx> {
 }
 
 impl<'tcx> Action<'tcx> {
-    fn local_copy(mir: &Mir<'tcx>, def_use_analysis: &DefUseAnalysis, src_lvalue: &Lvalue<'tcx>)
-                  -> Option<Action<'tcx>> {
+    fn local_copy<'a>(
+        mir: &Mir<'tcx>,
+        def_use_analysis: &DefUseAnalysis,
+        src_lvalue: &Lvalue<'tcx>,
+    ) -> Option<Action<'tcx>> {
         // The source must be a local.
         let src_local = if let Lvalue::Local(local) = *src_lvalue {
             local
@@ -210,17 +219,14 @@ impl<'tcx> Action<'tcx> {
         };
 
         // We're trying to copy propagate a local.
-        // There must be exactly one use of the source used in a statement (not in a terminator).
         let src_use_info = def_use_analysis.local_info(src_local);
         let src_use_count = src_use_info.use_count();
         if src_use_count == 0 {
-            debug!("  Can't copy-propagate local: no uses");
+            debug!("  Can't copy-propagate local: no uses of source {:?}", src_local);
             return None
         }
-        if src_use_count != 1 {
-            debug!("  Can't copy-propagate local: {} uses", src_use_info.use_count());
-            return None
-        }
+        // `src_use_count > 1` check isn't needed. We are able to replicate a source
+        // since we currently gives up if source is modified more than once (below).
 
         // Verify that the source doesn't change in between. This is done conservatively for now,
         // by ensuring that the source has exactly one mutation. The goal is to prevent things
@@ -235,9 +241,9 @@ impl<'tcx> Action<'tcx> {
         //     SRC = X;
         //     USE(SRC);
         let src_def_count = src_use_info.def_count_not_including_drop();
+        let src_is_arg = mir.local_kind(src_local) == LocalKind::Arg;
         // allow function arguments to be propagated
-        if src_def_count > 1 ||
-            (src_def_count == 0 && mir.local_kind(src_local) != LocalKind::Arg) {
+        if src_def_count > 1 || (!src_is_arg && src_def_count == 0) {
             debug!("  Can't copy-propagate local: {} defs of src",
                    src_use_info.def_count_not_including_drop());
             return None
