@@ -1224,6 +1224,7 @@ pub struct TyParam {
     pub did: DefId,
     pub bounds: Vec<TyParamBound>,
     pub default: Option<Type>,
+    pub synthetic: Option<hir::SyntheticTyParamKind>,
 }
 
 impl Clean<TyParam> for hir::TyParam {
@@ -1233,6 +1234,7 @@ impl Clean<TyParam> for hir::TyParam {
             did: cx.tcx.hir.local_def_id(self.id),
             bounds: self.bounds.clean(cx),
             default: self.default.clean(cx),
+            synthetic: self.synthetic,
         }
     }
 }
@@ -1248,10 +1250,11 @@ impl<'tcx> Clean<TyParam> for ty::TypeParameterDef {
                 Some(cx.tcx.type_of(self.def_id).clean(cx))
             } else {
                 None
+            },
+            synthetic: None,
             }
         }
     }
-}
 
 #[derive(Clone, RustcEncodable, RustcDecodable, PartialEq, Eq, Debug, Hash)]
 pub enum TyParamBound {
@@ -1616,6 +1619,16 @@ pub enum GenericParam {
     Type(TyParam),
 }
 
+impl GenericParam {
+    pub fn is_synthetic_type_param(&self) -> bool {
+        if let GenericParam::Type(ref t) = *self {
+            t.synthetic.is_some()
+        } else {
+            false
+        }
+    }
+}
+
 impl Clean<GenericParam> for hir::GenericParam {
     fn clean(&self, cx: &DocContext) -> GenericParam {
         match *self {
@@ -1648,6 +1661,7 @@ impl Clean<Generics> for hir::Generics {
                     if bounds.is_empty() {
                         for param in &mut g.params {
                             if let GenericParam::Type(ref mut type_param) = *param {
+                                if type_param.synthetic.is_some() { continue; }
                                 if &type_param.name == name {
                                     mem::swap(bounds, &mut type_param.bounds);
                                     break
@@ -1748,11 +1762,13 @@ pub struct Method {
 
 impl<'a> Clean<Method> for (&'a hir::MethodSig, &'a hir::Generics, hir::BodyId) {
     fn clean(&self, cx: &DocContext) -> Method {
+        let generics = self.1.clean(cx);
+        let bs = collect_impl_trait_bounds(&generics.params);
         Method {
-            generics: self.1.clean(cx),
+            generics,
             unsafety: self.0.unsafety,
             constness: self.0.constness,
-            decl: (&*self.0.decl, self.2).clean(cx),
+            decl: (&*self.0.decl, self.2, &bs).clean(cx),
             abi: self.0.abi
         }
     }
@@ -1777,6 +1793,8 @@ pub struct Function {
 
 impl Clean<Item> for doctree::Function {
     fn clean(&self, cx: &DocContext) -> Item {
+        let generics = self.generics.clean(cx);
+        let bs = collect_impl_trait_bounds(&generics.params);
         Item {
             name: Some(self.name.clean(cx)),
             attrs: self.attrs.clean(cx),
@@ -1786,8 +1804,8 @@ impl Clean<Item> for doctree::Function {
             deprecation: self.depr.clean(cx),
             def_id: cx.tcx.hir.local_def_id(self.id),
             inner: FunctionItem(Function {
-                decl: (&self.decl, self.body).clean(cx),
-                generics: self.generics.clean(cx),
+                decl: (&self.decl, self.body, &bs).clean(cx),
+                generics,
                 unsafety: self.unsafety,
                 constness: self.constness,
                 abi: self.abi,
@@ -1819,8 +1837,10 @@ pub struct Arguments {
     pub values: Vec<Argument>,
 }
 
-impl<'a> Clean<Arguments> for (&'a [P<hir::Ty>], &'a [Spanned<ast::Name>]) {
+impl<'a> Clean<Arguments> for (&'a [P<hir::Ty>], &'a [Spanned<ast::Name>], &'a ImplTraitBounds) {
     fn clean(&self, cx: &DocContext) -> Arguments {
+        let mut bs = self.2.iter().cloned();
+
         Arguments {
             values: self.0.iter().enumerate().map(|(i, ty)| {
                 let mut name = self.1.get(i).map(|n| n.node.to_string())
@@ -1830,34 +1850,35 @@ impl<'a> Clean<Arguments> for (&'a [P<hir::Ty>], &'a [Spanned<ast::Name>]) {
                 }
                 Argument {
                     name,
-                    type_: ty.clean(cx),
+                    type_: resolve_impl_trait(ty.clean(cx), &mut bs),
                 }
             }).collect()
         }
     }
 }
 
-impl<'a> Clean<Arguments> for (&'a [P<hir::Ty>], hir::BodyId) {
+impl<'a> Clean<Arguments> for (&'a [P<hir::Ty>], hir::BodyId, &'a ImplTraitBounds) {
     fn clean(&self, cx: &DocContext) -> Arguments {
+        let mut bs = self.2.iter().cloned();
         let body = cx.tcx.hir.body(self.1);
 
         Arguments {
             values: self.0.iter().enumerate().map(|(i, ty)| {
                 Argument {
                     name: name_from_pat(&body.arguments[i].pat),
-                    type_: ty.clean(cx),
+                    type_: resolve_impl_trait(ty.clean(cx), &mut bs)
                 }
             }).collect()
         }
     }
 }
 
-impl<'a, A: Copy> Clean<FnDecl> for (&'a hir::FnDecl, A)
-    where (&'a [P<hir::Ty>], A): Clean<Arguments>
+impl<'a, A: Copy> Clean<FnDecl> for (&'a hir::FnDecl, A, &'a ImplTraitBounds)
+    where (&'a [P<hir::Ty>], A, &'a ImplTraitBounds): Clean<Arguments>
 {
     fn clean(&self, cx: &DocContext) -> FnDecl {
         FnDecl {
-            inputs: (&self.0.inputs[..], self.1).clean(cx),
+            inputs: (&self.0.inputs[..], self.1, self.2).clean(cx),
             output: self.0.output.clean(cx),
             variadic: self.0.variadic,
             attrs: Attributes::default()
@@ -1872,7 +1893,8 @@ impl<'a, 'tcx> Clean<FnDecl> for (DefId, ty::PolyFnSig<'tcx>) {
             vec![].into_iter()
         } else {
             cx.tcx.fn_arg_names(did).into_iter()
-        }.peekable();
+        };
+
         FnDecl {
             output: Return(sig.skip_binder().output().clean(cx)),
             attrs: Attributes::default(),
@@ -2014,10 +2036,12 @@ impl Clean<Item> for hir::TraitItem {
                 MethodItem((sig, &self.generics, body).clean(cx))
             }
             hir::TraitItemKind::Method(ref sig, hir::TraitMethod::Required(ref names)) => {
+                let generics = self.generics.clean(cx);
+                let bs = collect_impl_trait_bounds(&generics.params);
                 TyMethodItem(TyMethod {
                     unsafety: sig.unsafety.clone(),
-                    decl: (&*sig.decl, &names[..]).clean(cx),
-                    generics: self.generics.clean(cx),
+                    decl: (&*sig.decl, &names[..], &bs).clean(cx),
+                    generics,
                     abi: sig.abi
                 })
             }
@@ -3233,10 +3257,12 @@ pub struct BareFunctionDecl {
 
 impl Clean<BareFunctionDecl> for hir::BareFnTy {
     fn clean(&self, cx: &DocContext) -> BareFunctionDecl {
+        let generic_params = self.generic_params.clean(cx);
+        let bs = collect_impl_trait_bounds(&generic_params);
         BareFunctionDecl {
             unsafety: self.unsafety,
-            generic_params: self.generic_params.clean(cx),
-            decl: (&*self.decl, &self.arg_names[..]).clean(cx),
+            generic_params,
+            decl: (&*self.decl, &self.arg_names[..], &bs).clean(cx),
             abi: self.abi,
         }
     }
@@ -3537,9 +3563,11 @@ impl Clean<Item> for hir::ForeignItem {
     fn clean(&self, cx: &DocContext) -> Item {
         let inner = match self.node {
             hir::ForeignItemFn(ref decl, ref names, ref generics) => {
+                let generics = generics.clean(cx);
+                let bs = collect_impl_trait_bounds(&generics.params);
                 ForeignFunctionItem(Function {
-                    decl: (&**decl, &names[..]).clean(cx),
-                    generics: generics.clean(cx),
+                    decl: (&**decl, &names[..], &bs).clean(cx),
+                    generics,
                     unsafety: hir::Unsafety::Unsafe,
                     abi: Abi::Rust,
                     constness: hir::Constness::NotConst,
@@ -3839,6 +3867,36 @@ pub fn def_id_to_path(cx: &DocContext, did: DefId, name: Option<String>) -> Vec<
         }
     });
     once(crate_name).chain(relative).collect()
+}
+
+type ImplTraitBounds = Vec<Vec<TyParamBound>>;
+
+/// Maps `Generic("impl ...")` to `ImplTrait(bs.next())`.
+fn resolve_impl_trait<I: Iterator<Item = Vec<TyParamBound>>>(ty: Type, bs: &mut I) -> Type {
+    match ty {
+        // `impl Trait` in argument become a `TyPath("impl Trait")` during HIR lowering.
+        Generic(ref name) if name.starts_with("impl ") => {
+            ImplTrait(
+                bs.next().expect("no correspondent `impl Trait`"),
+            )
+        }
+        ty => ty
+    }
+}
+
+/// Extract bounds for each `impl Trait` argument.
+pub fn collect_impl_trait_bounds(gps: &[GenericParam]) -> ImplTraitBounds {
+    gps.iter()
+        .filter_map(|p| {
+            if let GenericParam::Type(ref tp) = *p {
+                if tp.synthetic == Some(hir::SyntheticTyParamKind::ImplTrait) {
+                    return Some(tp.bounds.clone());
+                }
+            }
+
+            None
+        })
+        .collect()
 }
 
 // Start of code copied from rust-clippy
