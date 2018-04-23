@@ -29,6 +29,7 @@ use rustc::ty::ParamEnv;
 use rustc::ty::layout::{
     LayoutOf, TyLayout, LayoutError,
     HasTyCtxt, TargetDataLayout, HasDataLayout,
+    HasParamEnv,
 };
 
 pub struct ConstProp;
@@ -92,6 +93,13 @@ impl<'a, 'b, 'tcx> HasTyCtxt<'tcx> for &'a ConstPropagator<'a, 'b, 'tcx> {
     #[inline]
     fn tcx<'c>(&'c self) -> TyCtxt<'c, 'tcx, 'tcx> {
         self.tcx
+    }
+}
+
+impl<'a, 'b, 'tcx> HasParamEnv<'tcx> for &'a ConstPropagator<'a, 'b, 'tcx> {
+    #[inline]
+    fn param_env(&self) -> ty::ParamEnv<'tcx> {
+        self.param_env
     }
 }
 

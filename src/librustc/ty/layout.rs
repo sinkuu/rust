@@ -514,7 +514,7 @@ impl<'a, 'tcx> LayoutCx<'tcx, TyCtxt<'a, 'tcx, 'tcx>> {
                     return Ok(tcx.intern_layout(LayoutDetails::scalar(self, data_ptr)));
                 }
 
-                let unsized_part = tcx.struct_tail(pointee);
+                let unsized_part = tcx.struct_tail_normalized(param_env.and(pointee));
                 let metadata = match unsized_part.sty {
                     ty::TyForeign(..) => {
                         return Ok(tcx.intern_layout(LayoutDetails::scalar(self, data_ptr)));
@@ -1265,7 +1265,7 @@ impl<'a, 'tcx> SizeSkeleton<'tcx> {
             ty::TyRef(_, ty::TypeAndMut { ty: pointee, .. }) |
             ty::TyRawPtr(ty::TypeAndMut { ty: pointee, .. }) => {
                 let non_zero = !ty.is_unsafe_ptr();
-                let tail = tcx.struct_tail(pointee);
+                let tail = tcx.struct_tail_normalized(param_env.and(pointee));
                 match tail.sty {
                     ty::TyParam(_) | ty::TyProjection(_) => {
                         assert!(tail.has_param_types() || tail.has_self_ty());
@@ -1392,6 +1392,16 @@ impl<'gcx, 'tcx, T: HasTyCtxt<'gcx>> HasTyCtxt<'gcx> for LayoutCx<'tcx, T> {
     }
 }
 
+pub trait HasParamEnv<'tcx> {
+    fn param_env(&self) -> ty::ParamEnv<'tcx>;
+}
+
+impl<'tcx, T> HasParamEnv<'tcx> for LayoutCx<'tcx, T> {
+    fn param_env(&self) -> ty::ParamEnv<'tcx> {
+        self.param_env
+    }
+}
+
 pub trait MaybeResult<T> {
     fn from_ok(x: T) -> Self;
     fn map_same<F: FnOnce(T) -> T>(self, f: F) -> Self;
@@ -1505,7 +1515,7 @@ impl<'a, 'tcx> ty::maps::TyCtxtAt<'a, 'tcx, 'tcx> {
 }
 
 impl<'a, 'tcx, C> TyLayoutMethods<'tcx, C> for Ty<'tcx>
-    where C: LayoutOf<Ty = Ty<'tcx>> + HasTyCtxt<'tcx>,
+    where C: LayoutOf<Ty = Ty<'tcx>> + HasTyCtxt<'tcx> + HasParamEnv<'tcx>,
           C::TyLayout: MaybeResult<TyLayout<'tcx>>
 {
     fn for_variant(this: TyLayout<'tcx>, cx: C, variant_index: usize) -> TyLayout<'tcx> {
@@ -1581,7 +1591,8 @@ impl<'a, 'tcx, C> TyLayoutMethods<'tcx, C> for Ty<'tcx>
                     });
                 }
 
-                match tcx.struct_tail(pointee).sty {
+                let tail = tcx.struct_tail_normalized(cx.param_env().and(pointee));
+                match tail.sty {
                     ty::TySlice(_) |
                     ty::TyStr => tcx.types.usize,
                     ty::TyDynamic(..) => {

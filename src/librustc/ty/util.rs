@@ -302,42 +302,6 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
         ty
     }
 
-    /// Same as applying struct_tail on `source` and `target`, but only
-    /// keeps going as long as the two types are instances of the same
-    /// structure definitions.
-    /// For `(Foo<Foo<T>>, Foo<Trait>)`, the result will be `(Foo<T>, Trait)`,
-    /// whereas struct_tail produces `T`, and `Trait`, respectively.
-    pub fn struct_lockstep_tails(self,
-                                 source: Ty<'tcx>,
-                                 target: Ty<'tcx>)
-                                 -> (Ty<'tcx>, Ty<'tcx>) {
-        let (mut a, mut b) = (source, target);
-        loop {
-            match (&a.sty, &b.sty) {
-                (&TyAdt(a_def, a_substs), &TyAdt(b_def, b_substs))
-                        if a_def == b_def && a_def.is_struct() => {
-                    if let Some(f) = a_def.non_enum_variant().fields.last() {
-                        a = f.ty(self, a_substs);
-                        b = f.ty(self, b_substs);
-                    } else {
-                        break;
-                    }
-                },
-                (&TyTuple(a_tys), &TyTuple(b_tys))
-                        if a_tys.len() == b_tys.len() => {
-                    if let Some(a_last) = a_tys.last() {
-                        a = a_last;
-                        b = b_tys.last().unwrap();
-                    } else {
-                        break;
-                    }
-                },
-                _ => break,
-            }
-        }
-        (a, b)
-    }
-
     /// Given a set of predicates that apply to an object type, returns
     /// the region bounds that the (erased) `Self` type must
     /// outlive. Precisely *because* the `Self` type is erased, the
@@ -603,6 +567,68 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
                 _ => None
             }
         }
+    }
+}
+
+impl<'a, 'tcx> TyCtxt<'a, 'tcx, 'tcx> {
+    /// Same as [`struct_tail`][TyCtxt::struct_tail], but recursively normalizes associated types.
+    pub fn struct_tail_normalized(self, ty_env: ty::ParamEnvAnd<'tcx, Ty<'tcx>>) -> Ty<'tcx> {
+        let ty::ParamEnvAnd { value: mut ty, param_env } = ty_env;
+        loop {
+            ty = self.struct_tail(ty);
+            if !ty.has_projections() {
+                break;
+            }
+            let new_ty = self.normalize_erasing_regions(param_env, ty);
+            if new_ty != ty {
+                ty = new_ty;
+            } else {
+                break;
+            }
+        }
+        ty
+    }
+
+    /// Same as applying [`struct_tail_normalized`][TyCtxt::struct_tail_normalized]
+    /// on `source` and `target`, but only
+    /// keeps going as long as the two types are instances of the same
+    /// structure definitions.
+    /// For `(Foo<Foo<T>>, Foo<Trait>)`, the result will be `(Foo<T>, Trait)`,
+    /// whereas struct_tail produces `T`, and `Trait`, respectively.
+    pub fn struct_lockstep_tails(self,
+                                 source: Ty<'tcx>,
+                                 target: Ty<'tcx>,
+                                 param_env: ty::ParamEnv<'tcx>)
+                                 -> (Ty<'tcx>, Ty<'tcx>) {
+        let (mut a, mut b) = (source, target);
+        loop {
+            match (&a.sty, &b.sty) {
+                (&TyAdt(a_def, a_substs), &TyAdt(b_def, b_substs))
+                        if a_def == b_def && a_def.is_struct() => {
+                    if let Some(f) = a_def.non_enum_variant().fields.last() {
+                        a = f.ty(self, a_substs);
+                        b = f.ty(self, b_substs);
+                    } else {
+                        break;
+                    }
+                },
+                (&TyTuple(a_tys), &TyTuple(b_tys))
+                        if a_tys.len() == b_tys.len() => {
+                    if let Some(a_last) = a_tys.last() {
+                        a = a_last;
+                        b = b_tys.last().unwrap();
+                    } else {
+                        break;
+                    }
+                },
+                _ => break,
+            }
+
+            a = self.normalize_erasing_regions(param_env, a);
+            b = self.normalize_erasing_regions(param_env, b);
+
+        }
+        (a, b)
     }
 }
 

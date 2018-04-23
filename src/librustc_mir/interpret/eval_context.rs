@@ -162,6 +162,23 @@ impl<'c, 'b, 'a, 'mir, 'tcx, M: Machine<'mir, 'tcx>> layout::HasTyCtxt<'tcx>
     }
 }
 
+impl<'a, 'mir, 'tcx, M: Machine<'mir, 'tcx>> layout::HasParamEnv<'tcx>
+    for &'a EvalContext<'a, 'mir, 'tcx, M>
+{
+    #[inline]
+    fn param_env(&self) -> ty::ParamEnv<'tcx> {
+        self.param_env
+    }
+}
+
+impl<'c, 'b, 'a, 'mir, 'tcx, M: Machine<'mir, 'tcx>> layout::HasParamEnv<'tcx>
+    for &'c &'b mut EvalContext<'a, 'mir, 'tcx, M> {
+    #[inline]
+    fn param_env(&self) -> ty::ParamEnv<'tcx> {
+        self.param_env
+    }
+}
+
 impl<'a, 'mir, 'tcx, M: Machine<'mir, 'tcx>> LayoutOf for &'a EvalContext<'a, 'mir, 'tcx, M> {
     type Ty = Ty<'tcx>;
     type TyLayout = EvalResult<'tcx, TyLayout<'tcx>>;
@@ -1320,7 +1337,7 @@ impl<'a, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M
         } else {
             trace!("reading fat pointer extra of type {}", pointee_ty);
             let extra = ptr.offset(ptr_size, self)?;
-            match self.tcx.struct_tail(pointee_ty).sty {
+            match self.tcx.struct_tail_normalized(self.param_env.and(pointee_ty)).sty {
                 ty::TyDynamic(..) => Ok(p.to_value_with_vtable(
                     self.memory.read_ptr_sized(extra, ptr_align)?.to_ptr()?,
                 )),
@@ -1454,7 +1471,8 @@ impl<'a, 'mir, 'tcx: 'mir, M: Machine<'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M
         dty: Ty<'tcx>,
     ) -> EvalResult<'tcx> {
         // A<Struct> -> A<Trait> conversion
-        let (src_pointee_ty, dest_pointee_ty) = self.tcx.struct_lockstep_tails(sty, dty);
+        let (src_pointee_ty, dest_pointee_ty) =
+            self.tcx.struct_lockstep_tails(sty, dty, self.param_env);
 
         match (&src_pointee_ty.sty, &dest_pointee_ty.sty) {
             (&ty::TyArray(_, length), &ty::TySlice(_)) => {

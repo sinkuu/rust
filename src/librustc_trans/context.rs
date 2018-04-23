@@ -439,7 +439,7 @@ impl<'b, 'tcx> CodegenCx<'b, 'tcx> {
             return false;
         }
 
-        let tail = self.tcx.struct_tail(ty);
+        let tail = self.tcx.struct_tail_normalized(ty::ParamEnv::reveal_all().and(ty));
         match tail.sty {
             ty::TyForeign(..) => false,
             ty::TyStr | ty::TySlice(..) | ty::TyDynamic(..) => true,
@@ -463,6 +463,13 @@ impl<'a, 'tcx> HasTargetSpec for &'a CodegenCx<'a, 'tcx> {
 impl<'a, 'tcx> ty::layout::HasTyCtxt<'tcx> for &'a CodegenCx<'a, 'tcx> {
     fn tcx<'b>(&'b self) -> TyCtxt<'b, 'tcx, 'tcx> {
         self.tcx
+    }
+}
+
+impl<'a, 'tcx> ty::layout::HasParamEnv<'tcx> for &'a CodegenCx<'a, 'tcx> {
+    #[inline]
+    fn param_env(&self) -> ty::ParamEnv<'tcx> {
+        ty::ParamEnv::reveal_all()
     }
 }
 

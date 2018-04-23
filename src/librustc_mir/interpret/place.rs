@@ -289,7 +289,7 @@ impl<'a, 'mir, 'tcx, M: Machine<'mir, 'tcx>> EvalContext<'a, 'mir, 'tcx, M> {
 
     pub fn val_to_place(&self, val: Value, ty: Ty<'tcx>) -> EvalResult<'tcx, Place> {
         let layout = self.layout_of(ty)?;
-        Ok(match self.tcx.struct_tail(ty).sty {
+        Ok(match self.tcx.struct_tail_normalized(self.param_env.and(ty)).sty {
             ty::TyDynamic(..) => {
                 let (ptr, vtable) = self.into_ptr_vtable_pair(val)?;
                 Place::Ptr {

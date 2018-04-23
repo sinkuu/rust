@@ -196,7 +196,11 @@ pub fn unsized_info<'cx, 'tcx>(cx: &CodegenCx<'cx, 'tcx>,
                                 target: Ty<'tcx>,
                                 old_info: Option<ValueRef>)
                                 -> ValueRef {
-    let (source, target) = cx.tcx.struct_lockstep_tails(source, target);
+    let (source, target) = cx.tcx.struct_lockstep_tails(
+        source,
+        target,
+        ty::ParamEnv::reveal_all(),
+    );
     match (&source.sty, &target.sty) {
         (&ty::TyArray(_, len), &ty::TySlice(_)) => {
             C_usize(cx, len.val.unwrap_u64())

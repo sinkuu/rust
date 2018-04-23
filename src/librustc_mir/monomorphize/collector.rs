@@ -829,7 +829,7 @@ fn find_vtable_types_for_unsizing<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
             if ty.is_sized(tcx.at(DUMMY_SP), ty::ParamEnv::reveal_all()) {
                 return false;
             }
-            let tail = tcx.struct_tail(ty);
+            let tail = tcx.struct_tail_normalized(ty::ParamEnv::reveal_all().and(ty));
             match tail.sty {
                 ty::TyForeign(..) => false,
                 ty::TyStr | ty::TySlice(..) | ty::TyDynamic(..) => true,
@@ -839,7 +839,7 @@ fn find_vtable_types_for_unsizing<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
         if type_has_metadata(inner_source) {
             (inner_source, inner_target)
         } else {
-            tcx.struct_lockstep_tails(inner_source, inner_target)
+            tcx.struct_lockstep_tails(inner_source, inner_target, ty::ParamEnv::reveal_all())
         }
     };
 

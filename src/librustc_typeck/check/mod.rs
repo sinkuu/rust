@@ -308,12 +308,25 @@ impl<'a, 'gcx, 'tcx> Expectation<'tcx> {
     /// which still is useful, because it informs integer literals and the like.
     /// See the test case `test/run-pass/coerce-expect-unsized.rs` and #20169
     /// for examples of where this comes up,.
-    fn rvalue_hint(fcx: &FnCtxt<'a, 'gcx, 'tcx>, ty: Ty<'tcx>) -> Expectation<'tcx> {
-        match fcx.tcx.struct_tail(ty).sty {
-            ty::TySlice(_) | ty::TyStr | ty::TyDynamic(..) => {
-                ExpectRvalueLikeUnsized(ty)
+    fn rvalue_hint(fcx: &FnCtxt<'a, 'gcx, 'tcx>, span: Span, ty: Ty<'tcx>) -> Expectation<'tcx> {
+        let mut t = ty;
+        loop {
+            t = fcx.tcx.struct_tail(t);
+            match t.sty {
+                ty::TySlice(_) | ty::TyStr | ty::TyDynamic(..) => {
+                    return ExpectRvalueLikeUnsized(ty);
+                }
+                _ => if t.has_projections() {
+                    let normalized = fcx.normalize_ty(span, &t);
+                    if normalized != t {
+                        t = normalized;
+                    } else {
+                        return ExpectHasType(ty);
+                    }
+                } else {
+                    return ExpectHasType(ty);
+                }
             }
-            _ => ExpectHasType(ty)
         }
     }
 
@@ -2688,7 +2701,7 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
 
                 // The special-cased logic below has three functions:
                 // 1. Provide as good of an expected type as possible.
-                let expected = Expectation::rvalue_hint(self, expected_arg_tys[i]);
+                let expected = Expectation::rvalue_hint(self, arg.span, expected_arg_tys[i]);
 
                 let checked_ty = self.check_expr_with_expectation(&arg, expected);
 
@@ -3569,7 +3582,7 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
             let expected_inner = expected.to_option(self).map_or(NoExpectation, |ty| {
                 match ty.sty {
                     ty::TyAdt(def, _) if def.is_box()
-                        => Expectation::rvalue_hint(self, ty.boxed_ty()),
+                        => Expectation::rvalue_hint(self, expr.span, ty.boxed_ty()),
                     _ => NoExpectation
                 }
             });
@@ -3664,7 +3677,7 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
                             // the last field of a struct can be unsized.
                             ExpectHasType(mt.ty)
                         } else {
-                            Expectation::rvalue_hint(self, mt.ty)
+                            Expectation::rvalue_hint(self, expr.span, mt.ty)
                         }
                     }
                     _ => NoExpectation
