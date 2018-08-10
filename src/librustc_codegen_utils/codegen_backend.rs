@@ -22,8 +22,8 @@
 #![feature(box_syntax)]
 
 use std::any::Any;
-use std::io::{self, Write};
-use std::fs::File;
+use std::io::Write;
+use std::fs::{self, File};
 use std::path::Path;
 use std::sync::{mpsc, Arc};
 
@@ -83,11 +83,9 @@ pub struct NoLlvmMetadataLoader;
 
 impl MetadataLoader for NoLlvmMetadataLoader {
     fn get_rlib_metadata(&self, _: &Target, filename: &Path) -> Result<MetadataRef, String> {
-        let mut file = File::open(filename)
-            .map_err(|e| format!("metadata file open err: {:?}", e))?;
+        let buf = fs::read(filename)
+            .map_err(|e| format!("metadata file read err: {:?}", e))?;
 
-        let mut buf = Vec::new();
-        io::copy(&mut file, &mut buf).unwrap();
         let buf: OwningRef<Vec<u8>, [u8]> = OwningRef::new(buf).into();
         return Ok(rustc_erase_owner!(buf.map_owner_box()));
     }

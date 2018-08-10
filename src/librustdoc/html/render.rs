@@ -744,10 +744,7 @@ fn write_shared(cx: &Context,
     let mut themes: HashSet<String> = HashSet::new();
 
     for entry in &cx.shared.themes {
-        let mut content = Vec::with_capacity(100000);
-
-        let mut f = try_err!(File::open(&entry), &entry);
-        try_err!(f.read_to_end(&mut content), &entry);
+        let content = try_err!(fs::read(&entry), &entry);
         let theme = try_none!(try_none!(entry.file_stem(), &entry).to_str(), &entry);
         let extension = try_none!(try_none!(entry.extension(), &entry).to_str(), &entry);
         write(cx.dst.join(format!("{}{}.{}", theme, cx.shared.resource_suffix, extension)),
@@ -840,11 +837,8 @@ themePicker.onblur = handleThemeButtonsBlur;
         if !enable_minification {
             try_err!(fs::copy(css, out), css);
         } else {
-            let mut f = try_err!(File::open(css), css);
-            let mut buffer = String::with_capacity(1000);
-
-            try_err!(f.read_to_string(&mut buffer), css);
-            write_minify(out, &buffer, enable_minification)?;
+            let content = try_err!(File::read_to_string(css), css);
+            write_minify(out, &content, enable_minification)?;
         }
     }
     write_minify(cx.dst.join(&format!("normalize{}.css", cx.shared.resource_suffix)),

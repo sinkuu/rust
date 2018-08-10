@@ -35,8 +35,7 @@ use util::small_vector::SmallVector;
 use visit::{self, Visitor};
 
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::{iter, mem};
 use std::rc::Rc;
 use std::path::PathBuf;
@@ -1548,18 +1547,18 @@ impl<'a, 'b> Folder for InvocationCollector<'a, 'b> {
                         return noop_fold_attribute(at, self);
                     }
 
-                    let mut buf = vec![];
                     let filename = self.cx.root_path.join(file.to_string());
 
-                    match File::open(&filename).and_then(|mut f| f.read_to_end(&mut buf)) {
-                        Ok(..) => {}
+                    let buf = match fs::read(&filename) {
+                        Ok(v) => v,
                         Err(e) => {
                             self.cx.span_err(at.span,
                                              &format!("couldn't read {}: {}",
                                                       filename.display(),
                                                       e));
+                            Vec::new()
                         }
-                    }
+                    };
 
                     match String::from_utf8(buf) {
                         Ok(src) => {

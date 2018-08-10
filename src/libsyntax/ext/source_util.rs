@@ -21,8 +21,7 @@ use symbol::Symbol;
 use tokenstream;
 use util::small_vector::SmallVector;
 
-use std::fs::File;
-use std::io::prelude::*;
+use std::fs;
 use std::path::PathBuf;
 use rustc_data_structures::sync::Lrc;
 
@@ -137,9 +136,8 @@ pub fn expand_include_str(cx: &mut ExtCtxt, sp: Span, tts: &[tokenstream::TokenT
         None => return DummyResult::expr(sp)
     };
     let file = res_rel_file(cx, sp, file);
-    let mut bytes = Vec::new();
-    match File::open(&file).and_then(|mut f| f.read_to_end(&mut bytes)) {
-        Ok(..) => {}
+    let bytes = match fs::read(&file) {
+        Ok(v) => v,
         Err(e) => {
             cx.span_err(sp,
                         &format!("couldn't read {}: {}",
@@ -174,14 +172,13 @@ pub fn expand_include_bytes(cx: &mut ExtCtxt, sp: Span, tts: &[tokenstream::Toke
         None => return DummyResult::expr(sp)
     };
     let file = res_rel_file(cx, sp, file);
-    let mut bytes = Vec::new();
-    match File::open(&file).and_then(|mut f| f.read_to_end(&mut bytes)) {
+    match fs::read(&file) {
         Err(e) => {
             cx.span_err(sp,
                         &format!("couldn't read {}: {}", file.display(), e));
             DummyResult::expr(sp)
         }
-        Ok(..) => {
+        Ok(bytes) => {
             // Add this input file to the code map to make it available as
             // dependency information, but don't enter it's contents
             cx.codemap().new_filemap(file.into(), "".to_string());
