@@ -1269,7 +1269,7 @@ impl<'a, 'gcx, 'tcx> ProbeContext<'a, 'gcx, 'tcx> {
         // FIXME: check the return type here somehow.
         // If so, just use this trait and call it a day.
         Some(Pick {
-            item: probes[0].0.item.clone(),
+            item: probes[0].0.item,
             kind: TraitPick,
             import_id: probes[0].0.import_id,
             autoderefs: 0,
@@ -1481,12 +1481,12 @@ impl<'a, 'gcx, 'tcx> ProbeContext<'a, 'gcx, 'tcx> {
 impl<'tcx> Candidate<'tcx> {
     fn to_unadjusted_pick(&self) -> Pick<'tcx> {
         Pick {
-            item: self.item.clone(),
+            item: self.item,
             kind: match self.kind {
                 InherentImplCandidate(..) => InherentImplPick,
                 ObjectCandidate => ObjectPick,
                 TraitCandidate(_) => TraitPick,
-                WhereClauseCandidate(ref trait_ref) => {
+                WhereClauseCandidate(trait_ref) => {
                     // Only trait derived from where-clauses should
                     // appear here, so they should not contain any
                     // inference variables or other artifacts. This
@@ -1497,7 +1497,7 @@ impl<'tcx> Candidate<'tcx> {
                             && !trait_ref.skip_binder().substs.has_placeholders()
                     );
 
-                    WhereClausePick(trait_ref.clone())
+                    WhereClausePick(trait_ref)
                 }
             },
             import_id: self.import_id,

@@ -60,8 +60,8 @@ impl<'a, 'gcx, 'tcx> InferCtxt<'a, 'gcx, 'tcx> {
 
         let mut error_map: FxHashMap<_, Vec<_>> =
             self.reported_trait_errors.borrow().iter().map(|(&span, predicates)| {
-                (span, predicates.iter().map(|predicate| ErrorDescriptor {
-                    predicate: predicate.clone(),
+                (span, predicates.iter().map(|&predicate| ErrorDescriptor {
+                    predicate,
                     index: None
                 }).collect())
             }).collect();
@@ -80,14 +80,14 @@ impl<'a, 'gcx, 'tcx> InferCtxt<'a, 'gcx, 'tcx> {
 
             error_map.entry(span).or_default().push(
                 ErrorDescriptor {
-                    predicate: error.obligation.predicate.clone(),
+                    predicate: error.obligation.predicate,
                     index: Some(index)
                 }
             );
 
             self.reported_trait_errors.borrow_mut()
                 .entry(span).or_default()
-                .push(error.obligation.predicate.clone());
+                .push(error.obligation.predicate);
         }
 
         // We do this in 2 passes because we want to display errors in order, though
@@ -148,7 +148,7 @@ impl<'a, 'gcx, 'tcx> InferCtxt<'a, 'gcx, 'tcx> {
             }
         };
 
-        for implication in super::elaborate_predicates(self.tcx, vec![cond.clone()]) {
+        for implication in super::elaborate_predicates(self.tcx, vec![*cond]) {
             if let ty::Predicate::Trait(implication) = implication {
                 let error = error.to_poly_trait_ref();
                 let implication = implication.to_poly_trait_ref();
@@ -1264,7 +1264,7 @@ impl<'a, 'gcx, 'tcx> TyCtxt<'a, 'gcx, 'tcx> {
 
         let mut reported_violations = FxHashSet::default();
         for violation in violations {
-            if reported_violations.insert(violation.clone()) {
+            if reported_violations.insert(violation) {
                 err.note(&violation.error_msg());
             }
         }

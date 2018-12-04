@@ -1197,7 +1197,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
         // separately rather than using `stack.fresh_trait_ref` --
         // this is because we want the unbound variables to be
         // replaced with fresh types starting from index 0.
-        let cache_fresh_trait_pred = self.infcx.freshen(stack.obligation.predicate.clone());
+        let cache_fresh_trait_pred = self.infcx.freshen(stack.obligation.predicate);
         debug!(
             "candidate_from_obligation(cache_fresh_trait_pred={:?}, obligation={:?})",
             cache_fresh_trait_pred, stack
@@ -1766,7 +1766,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
                     this.match_projection(
                         obligation,
                         bound.clone(),
-                        skol_trait_predicate.trait_ref.clone(),
+                        skol_trait_predicate.trait_ref,
                         &placeholder_map,
                         snapshot,
                     )
@@ -1785,7 +1785,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
                 let result = self.match_projection(
                     obligation,
                     bound,
-                    skol_trait_predicate.trait_ref.clone(),
+                    skol_trait_predicate.trait_ref,
                     &placeholder_map,
                     snapshot,
                 );
@@ -1849,7 +1849,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
         // keep only those bounds which may apply, and propagate overflow if it occurs
         let mut param_candidates = vec![];
         for bound in matching_bounds {
-            let wc = self.evaluate_where_clause(stack, bound.clone())?;
+            let wc = self.evaluate_where_clause(stack, bound)?;
             if wc.may_apply() {
                 param_candidates.push(ParamCandidate(bound));
             }
@@ -2078,7 +2078,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
                     // the auto impl might apply, we don't know
                     candidates.ambiguous = true;
                 }
-                _ => candidates.vec.push(AutoImplCandidate(def_id.clone())),
+                _ => candidates.vec.push(AutoImplCandidate(def_id)),
             }
         }
 
@@ -2137,8 +2137,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
             let upcast_trait_refs = util::supertraits(this.tcx(), poly_trait_ref)
                 .filter(|upcast_trait_ref| {
                     this.probe(|this, _| {
-                        let upcast_trait_ref = upcast_trait_ref.clone();
-                        this.match_poly_trait_ref(obligation, upcast_trait_ref)
+                        this.match_poly_trait_ref(obligation, *upcast_trait_ref)
                             .is_ok()
                     })
                 })
@@ -2255,7 +2254,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
         let def_id = obligation.predicate.def_id();
 
         if ty::is_trait_alias(self.tcx(), def_id) {
-            candidates.vec.push(TraitAliasCandidate(def_id.clone()));
+            candidates.vec.push(TraitAliasCandidate(def_id));
         }
 
         Ok(())
@@ -2815,7 +2814,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
         // where-clause trait-ref could be unified with the obligation
         // trait-ref. Repeat that unification now without any
         // transactional boundary; it should not fail.
-        match self.match_where_clause_trait_ref(obligation, param.clone()) {
+        match self.match_where_clause_trait_ref(obligation, param) {
             Ok(obligations) => obligations,
             Err(()) => {
                 bug!(
@@ -3196,7 +3195,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
 
         Ok(VtableGeneratorData {
             generator_def_id: generator_def_id,
-            substs: substs.clone(),
+            substs,
             nested: obligations,
         })
     }
@@ -3254,7 +3253,7 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
 
         Ok(VtableClosureData {
             closure_def_id,
-            substs: substs.clone(),
+            substs,
             nested: obligations,
         })
     }
@@ -3291,7 +3290,6 @@ impl<'cx, 'gcx, 'tcx> SelectionContext<'cx, 'gcx, 'tcx> {
         obligation_trait_ref: ty::PolyTraitRef<'tcx>,
         expected_trait_ref: ty::PolyTraitRef<'tcx>,
     ) -> Result<Vec<PredicateObligation<'tcx>>, SelectionError<'tcx>> {
-        let obligation_trait_ref = obligation_trait_ref.clone();
         self.infcx
             .at(&obligation_cause, obligation_param_env)
             .sup(obligation_trait_ref, expected_trait_ref)

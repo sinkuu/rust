@@ -239,7 +239,7 @@ impl<'sess> OnDiskCache<'sess> {
                 assert!(cache.active.is_empty());
                 for (key, entry) in cache.results.iter() {
                     use ty::query::config::QueryDescription;
-                    if const_eval::cache_on_disk(key.clone()) {
+                    if const_eval::cache_on_disk(*key) {
                         if let Ok(ref value) = entry.value {
                             let dep_node = SerializedDepNodeIndex::new(entry.index.index());
 

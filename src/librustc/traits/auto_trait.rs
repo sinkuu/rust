@@ -171,7 +171,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                 did,
                 trait_did,
                 ty,
-                orig_params.clone(),
+                orig_params,
                 orig_params,
                 &mut fresh_preds,
                 false,
@@ -185,7 +185,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                 did,
                 trait_did,
                 ty,
-                new_env.clone(),
+                new_env,
                 user_env,
                 &mut fresh_preds,
                 true,
@@ -237,7 +237,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                 .map(|&(id, _)| (id, vec![]))
                 .collect();
 
-            infcx.process_registered_region_obligations(&body_id_map, None, full_env.clone());
+            infcx.process_registered_region_obligations(&body_id_map, None, full_env);
 
             let region_data = infcx
                 .borrow_region_constraints()
@@ -324,13 +324,13 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
         let mut user_computed_preds: FxHashSet<_> =
             user_env.caller_bounds.iter().cloned().collect();
 
-        let mut new_env = param_env.clone();
+        let mut new_env = param_env;
         let dummy_cause = ObligationCause::misc(DUMMY_SP, ast::DUMMY_NODE_ID);
 
         while let Some(pred) = predicates.pop_front() {
             infcx.clear_caches();
 
-            if !already_visited.insert(pred.clone()) {
+            if !already_visited.insert(pred) {
                 continue;
             }
 
@@ -373,7 +373,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                         already_visited.remove(&pred);
                         self.add_user_pred(
                             &mut user_computed_preds,
-                            ty::Predicate::Trait(pred.clone()),
+                            ty::Predicate::Trait(pred),
                         );
                         predicates.push_back(pred);
                     } else {
@@ -586,7 +586,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
         }
 
         while !vid_map.is_empty() {
-            let target = vid_map.keys().next().expect("Keys somehow empty").clone();
+            let target = *vid_map.keys().next().expect("Keys somehow empty");
             let deps = vid_map.remove(&target).expect("Entry somehow missing");
 
             for smaller in deps.smaller.iter() {
@@ -663,10 +663,10 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
 
         for (obligation, predicate) in nested
             .filter(|o| o.recursion_depth == 1)
-            .map(|o| (o.clone(), o.predicate.clone()))
+            .map(|o| (o.clone(), o.predicate))
         {
             let is_new_pred =
-                fresh_preds.insert(self.clean_pred(select.infcx(), predicate.clone()));
+                fresh_preds.insert(self.clean_pred(select.infcx(), predicate));
 
             match &predicate {
                 &ty::Predicate::Trait(ref p) => {
@@ -683,7 +683,7 @@ impl<'a, 'tcx> AutoTraitFinder<'a, 'tcx> {
                     if self.is_of_param(p.skip_binder().projection_ty.substs) && is_new_pred {
                         self.add_user_pred(computed_preds, predicate);
                     } else {
-                        match poly_project_and_unify_type(select, &obligation.with(p.clone())) {
+                        match poly_project_and_unify_type(select, &obligation.with(p)) {
                             Err(e) => {
                                 debug!(
                                     "evaluate_nested_obligations: Unable to unify predicate \

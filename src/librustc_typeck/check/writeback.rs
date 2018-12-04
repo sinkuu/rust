@@ -385,7 +385,7 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
 
             self.tables
                 .user_provided_tys_mut()
-                .insert(hir_id, c_ty.clone());
+                .insert(hir_id, c_ty);
         }
     }
 
@@ -406,7 +406,7 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
 
             self.tables
                 .user_provided_sigs
-                .insert(def_id, c_sig.clone());
+                .insert(def_id, c_sig);
         }
     }
 
@@ -662,7 +662,7 @@ impl<'cx, 'gcx, 'tcx> WritebackCx<'cx, 'gcx, 'tcx> {
             let fn_sig = self.resolve(fn_sig, &hir_id);
             self.tables
                 .liberated_fn_sigs_mut()
-                .insert(hir_id, fn_sig.clone());
+                .insert(hir_id, fn_sig);
         }
     }
 

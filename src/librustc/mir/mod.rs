@@ -2562,9 +2562,9 @@ impl<'tcx> TypeFoldable<'tcx> for UserTypeProjection<'tcx> {
             .map(|elem| {
                 match elem {
                     Deref => Deref,
-                    Field(f, ()) => Field(f.clone(), ()),
+                    Field(f, ()) => Field(*f, ()),
                     Index(()) => Index(()),
-                    elem => elem.clone(),
+                    elem => *elem,
                 }})
             .collect();
 
@@ -3350,7 +3350,7 @@ impl<'tcx> TypeFoldable<'tcx> for Field {
 impl<'tcx> TypeFoldable<'tcx> for Constant<'tcx> {
     fn super_fold_with<'gcx: 'tcx, F: TypeFolder<'gcx, 'tcx>>(&self, folder: &mut F) -> Self {
         Constant {
-            span: self.span.clone(),
+            span: self.span,
             ty: self.ty.fold_with(folder),
             user_ty: self.user_ty.fold_with(folder),
             literal: self.literal.fold_with(folder),

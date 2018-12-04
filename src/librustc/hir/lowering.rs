@@ -3002,7 +3002,7 @@ impl<'a> LoweringContext<'a> {
                 // two imports.
                 for (def, &new_node_id) in defs.zip([id1, id2].iter()) {
                     let vis = vis.clone();
-                    let name = name.clone();
+                    let name = *name;
                     let mut path = path.clone();
                     for seg in &mut path.segments {
                         seg.id = self.sess.next_node_id();
@@ -3108,7 +3108,7 @@ impl<'a> LoweringContext<'a> {
                     } = self.lower_node_id(id);
 
                     let mut vis = vis.clone();
-                    let mut name = name.clone();
+                    let mut name = *name;
                     let mut prefix = prefix.clone();
 
                     // Give the segments new ids since they are being cloned.
@@ -4065,17 +4065,17 @@ impl<'a> LoweringContext<'a> {
             ExprKind::Ret(ref e) => hir::ExprKind::Ret(e.as_ref().map(|x| P(self.lower_expr(x)))),
             ExprKind::InlineAsm(ref asm) => {
                 let hir_asm = hir::InlineAsm {
-                    inputs: asm.inputs.iter().map(|&(ref c, _)| c.clone()).collect(),
+                    inputs: asm.inputs.iter().map(|(c, _)| *c).collect(),
                     outputs: asm.outputs
                         .iter()
                         .map(|out| hir::InlineAsmOutput {
-                            constraint: out.constraint.clone(),
+                            constraint: out.constraint,
                             is_rw: out.is_rw,
                             is_indirect: out.is_indirect,
                             span: out.expr.span,
                         })
                         .collect(),
-                    asm: asm.asm.clone(),
+                    asm: asm.asm,
                     asm_str_style: asm.asm_str_style,
                     clobbers: asm.clobbers.clone().into(),
                     volatile: asm.volatile,

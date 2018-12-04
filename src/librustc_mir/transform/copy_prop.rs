@@ -234,7 +234,7 @@ impl<'tcx> Action<'tcx> {
     }
 
     fn constant(src_constant: &Constant<'tcx>) -> Option<Action<'tcx>> {
-        Some(Action::PropagateConstant((*src_constant).clone()))
+        Some(Action::PropagateConstant(*src_constant))
     }
 
     fn perform(self,
@@ -345,7 +345,7 @@ impl<'tcx> MutVisitor<'tcx> for ConstantPropagationVisitor<'tcx> {
             _ => return,
         }
 
-        *operand = Operand::Constant(box self.constant.clone());
+        *operand = Operand::Constant(box self.constant);
         self.uses_replaced += 1
     }
 }

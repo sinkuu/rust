@@ -232,9 +232,9 @@ fn encode_work_product_index(work_products: &FxHashMap<WorkProductId, WorkProduc
                              encoder: &mut Encoder) {
     let serialized_products: Vec<_> = work_products
         .iter()
-        .map(|(id, work_product)| {
+        .map(|(&id, work_product)| {
             SerializedWorkProduct {
-                id: id.clone(),
+                id,
                 work_product: work_product.clone(),
             }
         })

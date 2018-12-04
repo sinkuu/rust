@@ -806,7 +806,7 @@ impl<'a, 'tcx> BorrowckCtxt<'a, 'tcx> {
     }
 
     fn report_bckerr(&self, err: &BckError<'a, 'tcx>) {
-        let error_span = err.span.clone();
+        let error_span = err.span;
 
         match err.code {
             err_mutbl => {

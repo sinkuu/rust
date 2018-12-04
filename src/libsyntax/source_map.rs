@@ -967,7 +967,7 @@ impl SourceMapper for SourceMap {
         self.merge_spans(sp_lhs, sp_rhs)
     }
     fn call_span_if_macro(&self, sp: Span) -> Span {
-        if self.span_to_filename(sp.clone()).is_macros() {
+        if self.span_to_filename(sp).is_macros() {
             let v = sp.macro_backtrace();
             if let Some(use_site) = v.last() {
                 return use_site.call_site;

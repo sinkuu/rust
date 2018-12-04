@@ -481,7 +481,7 @@ impl<'a, 'mir, 'tcx> interpret::Machine<'a, 'mir, 'tcx>
             &ecx.tcx,
             span,
             &ecx.memory,
-            &ecx.stack[..],
+            &ecx.stack,
         )
     }
 
@@ -612,7 +612,7 @@ pub fn const_eval_provider<'a, 'tcx>(
 ) -> ::rustc::mir::interpret::ConstEvalResult<'tcx> {
     // see comment in const_eval_provider for what we're doing here
     if key.param_env.reveal == Reveal::All {
-        let mut key = key.clone();
+        let mut key = key;
         key.param_env.reveal = Reveal::UserFacing;
         match tcx.const_eval(key) {
             // try again with reveal all as requested
@@ -643,7 +643,7 @@ pub fn const_eval_raw_provider<'a, 'tcx>(
 
     // In case we fail in the `UserFacing` variant, we just do the real computation.
     if key.param_env.reveal == Reveal::All {
-        let mut key = key.clone();
+        let mut key = key;
         key.param_env.reveal = Reveal::UserFacing;
         match tcx.const_eval_raw(key) {
             // try again with reveal all as requested

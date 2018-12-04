@@ -45,7 +45,7 @@ impl<'a> ToStableHashKey<StableHashingContext<'a>> for InternedString {
     fn to_stable_hash_key(&self,
                           _: &StableHashingContext<'a>)
                           -> InternedString {
-        self.clone()
+        *self
     }
 }
 
@@ -66,7 +66,7 @@ impl<'a> ToStableHashKey<StableHashingContext<'a>> for LocalInternedString {
     fn to_stable_hash_key(&self,
                           _: &StableHashingContext<'a>)
                           -> LocalInternedString {
-        self.clone()
+        *self
     }
 }
 

@@ -413,7 +413,7 @@ impl<'a, 'tcx> Index<'tcx> {
         let ref active_lib_features = tcx.features().declared_lib_features;
 
         // Put the active features into a map for quick lookup
-        index.active_features = active_lib_features.iter().map(|&(ref s, _)| s.clone()).collect();
+        index.active_features = active_lib_features.iter().map(|(s, _)| *s).collect();
 
         {
             let krate = tcx.hir.krate();

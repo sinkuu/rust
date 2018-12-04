@@ -330,7 +330,7 @@ impl<'a, 'gcx, 'tcx> RegionCtxt<'a, 'gcx, 'tcx> {
         let fn_sig = {
             let fn_hir_id = self.tcx.hir.node_to_hir_id(id);
             match self.tables.borrow().liberated_fn_sigs().get(fn_hir_id) {
-                Some(f) => f.clone(),
+                Some(&f) => f,
                 None => {
                     bug!("No fn-sig entry for id={}", id);
                 }

@@ -176,7 +176,7 @@ pub fn setup_constraining_predicates<'tcx>(tcx: TyCtxt,
                 // to project out an associated type defined by this very
                 // trait.
                 let unbound_trait_ref = projection.projection_ty.trait_ref(tcx);
-                if Some(unbound_trait_ref.clone()) == impl_trait_ref {
+                if Some(unbound_trait_ref) == impl_trait_ref {
                     continue;
                 }
 

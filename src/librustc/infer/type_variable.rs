@@ -310,7 +310,7 @@ impl<'tcx> TypeVariableTable<'tcx> {
                 _ => None,
             })
             .map(|vid| {
-                let origin = self.values.get(vid.index as usize).origin.clone();
+                let origin = self.values.get(vid.index as usize).origin;
                 (vid, origin)
             })
             .collect()

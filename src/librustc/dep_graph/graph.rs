@@ -259,7 +259,7 @@ impl DepGraph {
             let mut hcx = cx.get_stable_hashing_context();
 
             if cfg!(debug_assertions) {
-                profq_msg(hcx.sess(), ProfileQueriesMsg::TaskBegin(key.clone()))
+                profq_msg(hcx.sess(), ProfileQueriesMsg::TaskBegin(key))
             };
 
             let result = if no_tcx {

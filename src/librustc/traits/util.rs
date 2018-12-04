@@ -405,11 +405,11 @@ pub fn predicates_for_generics<'tcx>(cause: ObligationCause<'tcx>,
     debug!("predicates_for_generics(generic_bounds={:?})",
            generic_bounds);
 
-    generic_bounds.predicates.iter().map(|predicate| {
+    generic_bounds.predicates.iter().map(|&predicate| {
         Obligation { cause: cause.clone(),
                      recursion_depth,
                      param_env,
-                     predicate: predicate.clone() }
+                     predicate }
     }).collect()
 }
 

@@ -82,9 +82,9 @@ pub fn html_of_effect(eff: &Effect) -> (String, String) {
 }
 
 // First return value is text; second return value is a CSS class
-fn html_of_duration(_start: &Instant, dur: &Duration) -> (String, String) {
+fn html_of_duration(_start: Instant, dur: Duration) -> (String, String) {
     use rustc::util::common::duration_to_secs_str;
-    (duration_to_secs_str(dur.clone()), String::new())
+    (duration_to_secs_str(dur), String::new())
 }
 
 fn html_of_fraction(frac: f64) -> (String, &'static str) {
@@ -124,7 +124,7 @@ fn duration_div(nom: Duration, den: Duration) -> f64 {
 fn write_traces_rec(file: &mut File, traces: &[Rec], total: Duration, depth: usize) {
     for t in traces {
         let (eff_text, eff_css_classes) = html_of_effect(&t.effect);
-        let (dur_text, dur_css_classes) = html_of_duration(&t.start, &t.dur_total);
+        let (dur_text, dur_css_classes) = html_of_duration(t.start, t.dur_total);
         let fraction = duration_div(t.dur_total, total);
         let percent = fraction * 100.0;
         let (frc_text, frc_css_classes) = html_of_fraction(fraction);
@@ -204,7 +204,7 @@ pub fn write_counts(count_file: &mut File, counts: &mut FxHashMap<String, QueryM
     use std::cmp::Reverse;
 
     let mut data = counts.iter().map(|(ref cons, ref qm)|
-        (cons.clone(), qm.count.clone(), qm.dur_total.clone(), qm.dur_self.clone())
+        (cons.clone(), qm.count, qm.dur_total, qm.dur_self)
     ).collect::<Vec<_>>();
 
     data.sort_by_key(|k| Reverse(k.3));

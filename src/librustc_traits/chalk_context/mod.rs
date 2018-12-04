@@ -404,7 +404,7 @@ impl context::UnificationOps<ChalkArenas<'gcx>, ChalkArenas<'tcx>>
         Canonical<'gcx, InEnvironment<'gcx, Goal<'gcx>>>,
         UniverseMap,
     ) {
-        (value.clone(), UniverseMap)
+        (*value, UniverseMap)
     }
 
     fn invert_goal(

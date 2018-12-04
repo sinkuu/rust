@@ -212,7 +212,7 @@ pub trait CodegenUnitExt<'tcx> {
     }
 
     fn codegen_dep_node(&self, tcx: TyCtxt<'_, 'tcx, 'tcx>) -> DepNode {
-        DepNode::new(tcx, DepConstructor::CompileCodegenUnit(self.name().clone()))
+        DepNode::new(tcx, DepConstructor::CompileCodegenUnit(*self.name()))
     }
 }
 
@@ -342,8 +342,8 @@ fn place_root_mono_items<'a, 'tcx, I>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
             None => fallback_cgu_name(cgu_name_builder),
         };
 
-        let codegen_unit = codegen_units.entry(codegen_unit_name.clone())
-            .or_insert_with(|| CodegenUnit::new(codegen_unit_name.clone()));
+        let codegen_unit = codegen_units.entry(codegen_unit_name)
+            .or_insert_with(|| CodegenUnit::new(codegen_unit_name));
 
         let mut can_be_internalized = true;
         let (linkage, visibility) = mono_item_linkage_and_visibility(
@@ -364,8 +364,8 @@ fn place_root_mono_items<'a, 'tcx, I>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
     // crate with just types (for example), we could wind up with no CGU
     if codegen_units.is_empty() {
         let codegen_unit_name = fallback_cgu_name(cgu_name_builder);
-        codegen_units.insert(codegen_unit_name.clone(),
-                             CodegenUnit::new(codegen_unit_name.clone()));
+        codegen_units.insert(codegen_unit_name,
+                             CodegenUnit::new(codegen_unit_name));
     }
 
     PreInliningPartitioning {
@@ -627,7 +627,7 @@ fn place_inlined_mono_items<'tcx>(initial_partitioning: PreInliningPartitioning<
             follow_inlining(*root, inlining_map, &mut reachable);
         }
 
-        let mut new_codegen_unit = CodegenUnit::new(old_codegen_unit.name().clone());
+        let mut new_codegen_unit = CodegenUnit::new(*old_codegen_unit.name());
 
         // Add all monomorphizations that are not already there
         for mono_item in reachable {
@@ -663,7 +663,7 @@ fn place_inlined_mono_items<'tcx>(initial_partitioning: PreInliningPartitioning<
                     }
                     Entry::Vacant(e) => {
                         e.insert(MonoItemPlacement::SingleCgu {
-                            cgu_name: new_codegen_unit.name().clone()
+                            cgu_name: *new_codegen_unit.name()
                         });
                     }
                 }
@@ -726,7 +726,7 @@ fn internalize_symbols<'a, 'tcx>(_tcx: TyCtxt<'a, 'tcx, 'tcx>,
     // accessed from outside its defining codegen unit.
     for cgu in &mut partitioning.codegen_units {
         let home_cgu = MonoItemPlacement::SingleCgu {
-            cgu_name: cgu.name().clone()
+            cgu_name: *cgu.name()
         };
 
         for (accessee, linkage_and_visibility) in cgu.items_mut() {
@@ -847,7 +847,7 @@ fn compute_codegen_unit_name(tcx: TyCtxt,
 
     let cgu_def_id = cgu_def_id.unwrap();
 
-    cache.entry((cgu_def_id, volatile)).or_insert_with(|| {
+    *cache.entry((cgu_def_id, volatile)).or_insert_with(|| {
         let def_path = tcx.def_path(cgu_def_id);
 
         let components = def_path
@@ -862,7 +862,7 @@ fn compute_codegen_unit_name(tcx: TyCtxt,
         };
 
         name_builder.build_cgu_name(def_path.krate, components, volatile_suffix)
-    }).clone()
+    })
 }
 
 fn numbered_codegen_unit_name(name_builder: &mut CodegenUnitNameBuilder,

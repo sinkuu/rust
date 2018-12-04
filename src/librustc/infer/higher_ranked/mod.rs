@@ -526,7 +526,7 @@ impl<'a, 'gcx, 'tcx> InferCtxt<'a, 'gcx, 'tcx> {
 
                     self.tcx.mk_region(ty::ReLateBound(
                         current_depth.shifted_out(1),
-                        br.clone(),
+                        *br,
                     ))
                 }
             }

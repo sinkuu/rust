@@ -135,7 +135,7 @@ impl<'tcx> QueryJob<'tcx> {
                 cycle[0].span = span;
                 // Find out why the cycle itself was used
                 let usage = job.parent.as_ref().map(|parent| {
-                    (job.info.span, parent.info.query.clone())
+                    (job.info.span, parent.info.query)
                 });
                 return Err(CycleError { usage, cycle });
             }

@@ -1576,7 +1576,7 @@ impl<'a> TraitDef<'a> {
                     ast::BindingMode::ByRef(mutbl)
                 };
                 cx.pat(path.span,
-                       PatKind::Ident(binding_mode, (*path).clone(), None))
+                       PatKind::Ident(binding_mode, *path, None))
             })
             .collect()
     }

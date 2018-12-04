@@ -430,7 +430,7 @@ impl<'cx, 'gcx, 'tcx> LexicalResolver<'cx, 'gcx, 'tcx> {
 
             errors.push(RegionResolutionError::GenericBoundFailure(
                 verify.origin.clone(),
-                verify.kind.clone(),
+                verify.kind,
                 sub,
             ));
         }
@@ -569,7 +569,7 @@ impl<'cx, 'gcx, 'tcx> LexicalResolver<'cx, 'gcx, 'tcx> {
                 if !self.region_rels
                     .is_subregion_of(lower_bound.region, upper_bound.region)
                 {
-                    let origin = self.var_infos[node_idx].origin.clone();
+                    let origin = self.var_infos[node_idx].origin;
                     debug!(
                         "region inference error at {:?} for {:?}: SubSupConflict sub: {:?} \
                          sup: {:?}",

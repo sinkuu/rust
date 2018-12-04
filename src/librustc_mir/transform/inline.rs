@@ -372,7 +372,7 @@ impl<'a, 'tcx> Inliner<'a, 'tcx> {
             let ty = v.ty.subst(tcx, callsite.substs);
             // Cost of the var is the size in machine-words, if we know
             // it.
-            if let Some(size) = type_size_of(tcx, param_env.clone(), ty) {
+            if let Some(size) = type_size_of(tcx, param_env, ty) {
                 cost += (size / ptr_size) as usize;
             } else {
                 cost += UNKNOWN_SIZE_COST;

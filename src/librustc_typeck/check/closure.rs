@@ -207,7 +207,7 @@ impl<'a, 'gcx, 'tcx> FnCtxt<'a, 'gcx, 'tcx> {
             ty::FnPtr(sig) => {
                 let expected_sig = ExpectedSig {
                     cause_span: None,
-                    sig: sig.skip_binder().clone(),
+                    sig: *sig.skip_binder(),
                 };
                 (Some(expected_sig), Some(ty::ClosureKind::Fn))
             }

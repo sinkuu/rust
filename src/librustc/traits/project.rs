@@ -390,7 +390,7 @@ impl<'a, 'b, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for AssociatedTypeNormalizer<'a,
                 }
             }
 
-            ty::Projection(ref data) if !data.has_escaping_bound_vars() => { // (*)
+            ty::Projection(data) if !data.has_escaping_bound_vars() => { // (*)
 
                 // (*) This is kind of hacky -- we need to be able to
                 // handle normalization within binders because
@@ -406,7 +406,7 @@ impl<'a, 'b, 'gcx, 'tcx> TypeFolder<'gcx, 'tcx> for AssociatedTypeNormalizer<'a,
 
                 let normalized_ty = normalize_projection_type(self.selcx,
                                                               self.param_env,
-                                                              data.clone(),
+                                                              data,
                                                               self.cause.clone(),
                                                               self.depth,
                                                               &mut self.obligations);
@@ -486,7 +486,7 @@ pub fn normalize_projection_type<'a, 'b, 'gcx, 'tcx>(
     obligations: &mut Vec<PredicateObligation<'tcx>>)
     -> Ty<'tcx>
 {
-    opt_normalize_projection_type(selcx, param_env, projection_ty.clone(), cause.clone(), depth,
+    opt_normalize_projection_type(selcx, param_env, projection_ty, cause.clone(), depth,
                                   obligations)
         .unwrap_or_else(move || {
             // if we bottom out in ambiguity, create a type variable

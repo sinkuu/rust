@@ -53,8 +53,8 @@ impl<'tcx> Lift for PlaceElem<'tcx> {
         match *self {
             ProjectionElem::Deref =>
                 ProjectionElem::Deref,
-            ProjectionElem::Field(ref f, ty) =>
-                ProjectionElem::Field(f.clone(), ty.lift()),
+            ProjectionElem::Field(f, ty) =>
+                ProjectionElem::Field(f, ty.lift()),
             ProjectionElem::Index(ref i) =>
                 ProjectionElem::Index(i.lift()),
             ProjectionElem::Subslice {from, to} =>
@@ -66,7 +66,7 @@ impl<'tcx> Lift for PlaceElem<'tcx> {
                     from_end,
                 },
             ProjectionElem::Downcast(a, u) =>
-                ProjectionElem::Downcast(a.clone(), u.clone()),
+                ProjectionElem::Downcast(a.clone(), u),
         }
     }
 }

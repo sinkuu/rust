@@ -1305,7 +1305,7 @@ pub trait ToPolyTraitRef<'tcx> {
 
 impl<'tcx> ToPolyTraitRef<'tcx> for TraitRef<'tcx> {
     fn to_poly_trait_ref(&self) -> PolyTraitRef<'tcx> {
-        ty::Binder::dummy(self.clone())
+        ty::Binder::dummy(*self)
     }
 }
 
@@ -1322,7 +1322,7 @@ pub trait ToPredicate<'tcx> {
 impl<'tcx> ToPredicate<'tcx> for TraitRef<'tcx> {
     fn to_predicate(&self) -> Predicate<'tcx> {
         ty::Predicate::Trait(ty::Binder::dummy(ty::TraitPredicate {
-            trait_ref: self.clone()
+            trait_ref: *self
         }))
     }
 }
@@ -1335,19 +1335,19 @@ impl<'tcx> ToPredicate<'tcx> for PolyTraitRef<'tcx> {
 
 impl<'tcx> ToPredicate<'tcx> for PolyRegionOutlivesPredicate<'tcx> {
     fn to_predicate(&self) -> Predicate<'tcx> {
-        Predicate::RegionOutlives(self.clone())
+        Predicate::RegionOutlives(*self)
     }
 }
 
 impl<'tcx> ToPredicate<'tcx> for PolyTypeOutlivesPredicate<'tcx> {
     fn to_predicate(&self) -> Predicate<'tcx> {
-        Predicate::TypeOutlives(self.clone())
+        Predicate::TypeOutlives(*self)
     }
 }
 
 impl<'tcx> ToPredicate<'tcx> for PolyProjectionPredicate<'tcx> {
     fn to_predicate(&self) -> Predicate<'tcx> {
-        Predicate::Projection(self.clone())
+        Predicate::Projection(*self)
     }
 }
 
@@ -3156,7 +3156,7 @@ fn crate_disambiguator<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
 fn original_crate_name<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,
                                  crate_num: CrateNum) -> Symbol {
     assert_eq!(crate_num, LOCAL_CRATE);
-    tcx.crate_name.clone()
+    tcx.crate_name
 }
 
 fn crate_hash<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>,

@@ -90,7 +90,7 @@ pub fn mir_build<'a, 'tcx>(tcx: TyCtxt<'a, 'tcx, 'tcx>, def_id: DefId) -> Mir<'t
             // fetch the fully liberated fn signature (that is, all bound
             // types/lifetimes replaced)
             let fn_hir_id = tcx.hir.node_to_hir_id(id);
-            let fn_sig = cx.tables().liberated_fn_sigs()[fn_hir_id].clone();
+            let fn_sig = cx.tables().liberated_fn_sigs()[fn_hir_id];
 
             let ty = tcx.type_of(tcx.hir.local_def_id(id));
             let mut abi = fn_sig.abi;

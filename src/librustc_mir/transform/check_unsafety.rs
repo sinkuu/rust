@@ -277,8 +277,8 @@ impl<'a, 'tcx> UnsafetyChecker<'a, 'tcx> {
                            violations: &[UnsafetyViolation],
                            unsafe_blocks: &[(ast::NodeId, bool)]) {
         if self.min_const_fn {
-            for violation in violations {
-                let mut violation = violation.clone();
+            for &violation in violations {
+                let mut violation = violation;
                 violation.kind = UnsafetyViolationKind::MinConstFn;
                 if !self.violations.contains(&violation) {
                     self.violations.push(violation)

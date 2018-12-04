@@ -78,7 +78,7 @@ impl Emitter for EmitterWriter {
                                           &mut children,
                                           db.handler.flags.external_macro_backtrace);
 
-        self.emit_messages_default(&db.level,
+        self.emit_messages_default(db.level,
                                    &db.styled_message(),
                                    &db.code,
                                    &primary_span,
@@ -835,12 +835,12 @@ impl EmitterWriter {
                 if sp_label.span.is_dummy() {
                     continue;
                 }
-                if sm.span_to_filename(sp_label.span.clone()).is_macros() &&
+                if sm.span_to_filename(sp_label.span).is_macros() &&
                     !always_backtrace
                 {
                     let v = sp_label.span.macro_backtrace();
                     if let Some(use_site) = v.last() {
-                        before_after.push((sp_label.span.clone(), use_site.call_site.clone()));
+                        before_after.push((sp_label.span, use_site.call_site));
                     }
                 }
             }
@@ -958,7 +958,7 @@ impl EmitterWriter {
                             msp: &MultiSpan,
                             msg: &[(String, Style)],
                             code: &Option<DiagnosticId>,
-                            level: &Level,
+                            level: Level,
                             max_line_num_len: usize,
                             is_secondary: bool)
                             -> io::Result<()> {
@@ -985,13 +985,13 @@ impl EmitterWriter {
         } else {
             let level_str = level.to_string();
             if !level_str.is_empty() {
-                buffer.append(0, &level_str, Style::Level(level.clone()));
+                buffer.append(0, &level_str, Style::Level(level));
             }
             // only render error codes, not lint codes
             if let Some(DiagnosticId::Error(ref code)) = *code {
-                buffer.append(0, "[", Style::Level(level.clone()));
-                buffer.append(0, &code, Style::Level(level.clone()));
-                buffer.append(0, "]", Style::Level(level.clone()));
+                buffer.append(0, "[", Style::Level(level));
+                buffer.append(0, &code, Style::Level(level));
+                buffer.append(0, "]", Style::Level(level));
             }
             if !level_str.is_empty() {
                 buffer.append(0, ": ", header_style);
@@ -1197,7 +1197,7 @@ impl EmitterWriter {
 
     fn emit_suggestion_default(&mut self,
                                suggestion: &CodeSuggestion,
-                               level: &Level,
+                               level: Level,
                                max_line_num_len: usize)
                                -> io::Result<()> {
         if let Some(ref sm) = self.sm {
@@ -1206,7 +1206,7 @@ impl EmitterWriter {
             // Render the suggestion message
             let level_str = level.to_string();
             if !level_str.is_empty() {
-                buffer.append(0, &level_str, Style::Level(level.clone()));
+                buffer.append(0, &level_str, Style::Level(level));
                 buffer.append(0, ": ", Style::HeaderMsg);
             }
             self.msg_to_buffer(&mut buffer,
@@ -1318,7 +1318,7 @@ impl EmitterWriter {
     }
 
     fn emit_messages_default(&mut self,
-                             level: &Level,
+                             level: Level,
                              message: &[(String, Style)],
                              code: &Option<DiagnosticId>,
                              span: &MultiSpan,
@@ -1354,7 +1354,7 @@ impl EmitterWriter {
                         match self.emit_message_default(&span,
                                                         &child.styled_message(),
                                                         &None,
-                                                        &child.level,
+                                                        child.level,
                                                         max_line_num_len,
                                                         true) {
                             Err(e) => panic!("failed to emit error: {}", e),
@@ -1363,7 +1363,7 @@ impl EmitterWriter {
                     }
                     for sugg in suggestions {
                         match self.emit_suggestion_default(sugg,
-                                                           &Level::Help,
+                                                           Level::Help,
                                                            max_line_num_len) {
                             Err(e) => panic!("failed to emit error: {}", e),
                             _ => ()
@@ -1436,7 +1436,7 @@ fn overlaps(a1: &Annotation, a2: &Annotation, padding: usize) -> bool {
 }
 
 fn emit_to_destination(rendered_buffer: &[Vec<StyledString>],
-                       lvl: &Level,
+                       lvl: Level,
                        dst: &mut Destination,
                        short_message: bool)
                        -> io::Result<()> {
@@ -1459,7 +1459,7 @@ fn emit_to_destination(rendered_buffer: &[Vec<StyledString>],
     let _buffer_lock = lock::acquire_global_lock("rustc_errors");
     for (pos, line) in rendered_buffer.iter().enumerate() {
         for part in line {
-            dst.apply_style(lvl.clone(), part.style)?;
+            dst.apply_style(lvl, part.style)?;
             write!(dst, "{}", part.text)?;
             dst.reset()?;
         }

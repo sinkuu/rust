@@ -168,7 +168,7 @@ impl<'a, 'gcx, 'tcx> Builder<'a, 'gcx, 'tcx> {
                         Statement {
                             source_info,
                             kind: StatementKind::AscribeUserType(
-                                Place::Local(temp.clone()),
+                                Place::Local(temp),
                                 Variance::Invariant,
                                 box UserTypeProjection { base: user_ty, projs: vec![], },
                             ),
